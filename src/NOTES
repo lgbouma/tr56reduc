@@ -1,0 +1,338 @@
+====================
+
+* Other things to try:
+
+  * detrend vs airmass. (follow Adams, Fig 18 of Photometric_Reduction_Guide)
+
+  * changing aperture radius; 
+
+  * allowing aperture radius to scale with seeing; 
+
+  X weight all the comp stars equally instead of just summing the flux.
+  > improves r band by a few %. worsens i band by >~10%.
+
+
+* do g,z bands too
+  * fine-tune SAP parameters
+
+* add data from before repointing.
+
+* fit transit model w/ emcee
+
+====================
+Fri 30 Jun 2017 11:47:01 AM EDT
+
+Tried AstroImageJ, I'm not seeing the light. Getting it down to the sub-%
+precision we currently have would be difficult. Also, I foudn
+https://github.com/astropy/photutils/pull/453, which indicates the median local
+background subtraction might actually work.
+
+
+====================
+Thu 29 Jun 2017 01:59:24 PM EDT
+
+OH. a big thing might have been that I was throwing away a bunch of great
+comparison stars by imposing the upper bound on length that was too small
+(1*number of points in tr56!)
+
+X plot comparison star residuals
+X plot comparison star fluxes
+  (all on same mega-plot, cf Fig 18 of Photometric_Reduction_Guide.pdf)
+
+
+
+
+====================
+
+>>> from photutils import Background2D, SigmaClip, MedianBackground
+>>> sigma_clip = SigmaClip(sigma=3., iters=10)
+>>> bkg_estimator = MedianBackground()
+>>> bkg = Background2D(data2, (50, 50), filter_size=(3, 3),
+...                    sigma_clip=sigma_clip, bkg_estimator=bkg_estimator)
+
+filter_size is box size of median filter, (50,50) is the box size for
+background estimation.
+
+The box size should generally be larger than the typical size of sources in
+the image, but small enough to encapsulate any background variations. For best
+results, the box size should also be chosen so that the data are covered by an
+integer number of boxes in both dimensions.
+
+>>> print(bkg.background_median)
+10.8219978626
+>>> print(bkg.background_rms_median)
+2.29882053968
+
+>>> plt.imshow(bkg.background, origin='lower', cmap='Greys_r')
+
+
+
+
+
+
+====================
+Thu 29 Jun 2017 10:20:26 AM EDT
+
+154_g_reduced.fits: looks like g does have a dead column
+
+X correct the times based on the TELUT-> BJD correction
+X see JNW's suggestion inre: Eastman's BJD code.
+
+====================
+
+JNW
+
+> Did the flat fielding seem to work? I.e., does the sky level seem to be the
+> same all over the image?  Did it get rid of artifacts and out-of-focus specks
+> of dust, etc.?
+
+
+There's a high degree of background variance, but I think this is because of
+the field having many stars, rather than the flat fielding not working.
+
+Seems like it got rid of most artifacts, yes.
+
+
+> When evaluating the sky background it’s good to calculate the median (more
+> robust than mean), and then sigma-clip, recalculate median, etc.
+
+
+Agreed. For my current implementation of local sky background subtraction (i.e.
+doing an annulus around each star), I don't have access to the pixel-level data
+in every annular (or circular) aperture (I'm subcontracting to photutils).
+
+It might be worth trying a 2D background subtraction? I.e. mask sources in the
+original image, then sigclip down to a more "robust" sky noise, then subtract
+that. (And maybe afterwards do local background subtraction)
+
+
+
+> How did you prepare the time series of relative flux?  Divide by the sum of
+> comparison star fluxes?
+
+Yes, divided by sum of comparison star fluxes.
+
+
+> Your method for choosing comp stars is systematic but a bit biased, in that you
+> rely on similarity to the TR-56 light curve. We expect the light curves to
+> differ because of the transit.  Thus your method will reduce the amplitude of
+> the transit, at least to some degree.  Better to just hand pick stars that are
+> relatively isolated, and relatively near TR-56 in both pixel coordinates and
+> flux.
+
+Right. I would think that the transit would be a small enough effect vs the 50%
+variations that are in the flux time series anyway for this to not be
+important. It does seem like hand-picking does better though.
+
+
+ 
+> After performing the correction, the comparison star light curves should be
+> nice and flat, with a scatter that is within a factor of 2 of the theoretical
+> (photon counting) noise.  
+
+This is definitely not the case.
+
+> Or maybe there will be a slow trend with airmass because of the differing
+> colors of the stars.  If that’s not true then something might be awry with
+> your selection of comparison stars, or with the way in which the comparison
+> signal is being computed.
+
+> I’d like to see: (i) flux(t) in adu for 5 hand picked comparison stars, 
+
+> (ii) comparison signal = sum of flux in adu of all the comp stars, 
+
+> (iii) flux of TR-56 in adu, 
+
+> (iv) TR-56 divided by comparison signal.
+
+
+> Other things to try: changing aperture radius; allowing aperture radius to
+> scale with seeing; weight all the comp stars equally instead of just summing
+> the flux.
+
+
+
+
+=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
+
+
+====================
+
+X send JNW initial results
+
+X verify new apertures, fwhms, & peak values are OK.
+  > OK, i band is getting shitty cluster counts from DBSCAN. Why?
+  > We know that iband starfind+SAP pickles are working. Plenty of sources. Too
+  > many?
+
+  try just running i band alone, and lower eps to 15.
+
+  Then BOOM got 212 clusters in i band.
+
+  --> think it might be that do_centroid_clustering has some bug on second
+  loop ._.
+  > seems correct. IDK wtf it is though.
+  > JK found it. I was incrementing something that wasn't being reset.
+
+
+
+
+====================
+Sun 25 Jun 2017 05:04:37 PM EDT
+
+New apertures are fine in i band. r band struggles pre-195. but post-195 it's
+fine.
+
+Looking like i band centroid clustering gets fucked tho.
+
+
+====================
+Sun 25 Jun 2017 12:31:34 AM EDT
+
+OK, ran, and it's looking better. (we have sub % photometry, and it looks like
+a transit actually happened)
+
+Comparison stars that may be good in one band may not in another.
+
+r band 5 that look reasonably good are:
+23, 27, 43, 60, 98
+
+i band (looking worse) are:
+11, 17, 80, 92, 9
+
+Sigma clipping comparison star fluxes seems kind of important ._.
+
+X make comparison star selection more systematic (linear interpolation for all
+  of em)
+X do i band.
+X check selected comparison star LCs (n.b. this is needed in order to veto any
+  that pass chisq and other tests, but are wonky for whatever reason)
+X find more comparison stars for i,r
+X add local background subtraction
+
+
+====================
+
+Sat 24 Jun 2017 04:40:46 PM EDT
+
+blergh. some similar shit needing a rerun of simple aperture phot b/c it seems
+to have fucked with the photometry (again). my bet: dropbox is fucking with me.
+
+...
+
+for time being, can proceed with r band
+
+
+====================
+
+Sat 24 Jun 2017 03:25:36 PM EDT
+
+DBSCAN using just centroid_x and centroid_y:
+
+if ix == 0:
+    eps = 4  # maybe ~ 4 pixels drift in the pre-pointing data.
+    min_samples = 0.7*N_pre
+if ix == 1:
+    eps = 15 # much more drift in the post-repointing data
+    min_samples = 0.7*N_post
+
+pre
+Estimated number of clusters: 234
+post
+Estimated number of clusters: 186
+
+OK. It would be nice to figure out a way to cluster on flux too, but the best
+metric isn't obvious (and might require some funky normalization).
+
+Running thru i and r band. Then process to select comparison stars.
+
+WARNING:
+you need to come up with some different stats for r band photometry? B/c
+current process of
+
+do_simple_aperture_phot
+do_centroid_clustering
+
+doesn't produce enough clusters in r band photometry.
+
+--> NVM. fixed upon rerun.
+
+====================
+
+Sat 24 Jun 2017 01:58:06 AM EDT
+
+OK, by projecting the centroids down on time, it looks like u should be able to
+machine-learn the star labels.
+
+Try it via DBSCAN.
+
+Can cluster either on centroid positions (with a good eps & min number of
+samples set via the number of time points, should be reasonable),
+
+OR go a step further any try centroid positions with fluxes.
+More dimensions, but more information!
+
+
+====================
+Fri 23 Jun 2017 06:19:33 PM EDT
+
+Brian notes "there's no dark current. So ignore the one dark frame from night
+of 170618 -- it's not useful".
+
+Means
+
+science_reduced = (science_raw - master bias) /
+                        master flat_{reduced,normalized}
+
+In constructing calibration frames:
+* Master bias frame is median of stack of biases. It will be subtracted
+  directly from the science images.
+* Master flat frame is 
+    median( (twilight image - master bias) / mean(twilight image) )
+
+In simple aperture photometry:
+* Threshold for source identification is arbitrary. 2500 is too high for i
+  band. 1500 seems to work for r band.
+
+* in r band-> 38 is minimum number of other stars found.
+
+* in i band: tr56_474.fits is a dud band.
+
+
+
+
+
+====================
+
+
+It might be worth just walking thru all the ObsAstro lab procedures. Actually 
+teaches you the basics of what you need to be doing:
+
+science_reduced = science_raw - master bias - dark current_scaled /
+                        master flat_{reduced,normalized}
+
+
+====================
+
+N.B. the biases do not have a listed exposure time.
+
+I think this will work out OK.
+
+BUT it might be worth asking for a bias from exposed for the actual exposure
+time....
+
+The single dark (full frame does).
+
+
+====================
+
+ERR: tr56_474.fits position of tr56 is 43.8 pix (3.02 arcsec) from prev
+continue to next frame...
+
+(i think this was a cloud or something?)
+
+(just ditching the one wonky frame)
+
+ditching first 4 calibration frames
+
+need to give new initial centroid guess after the reslewing of scope.
