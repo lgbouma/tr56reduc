@@ -1,16 +1,16 @@
 ====================
 
+* Time calibration
+* Flat fielding
+* Local sky background issues
+* 2D background subtraction(?)
+* could also weight by sqrt(flux), instead of by flux (which is "summing by the
+  flux"). or by nothing!
+
 * Other things to try:
-
   * detrend vs airmass. (follow Adams, Fig 18 of Photometric_Reduction_Guide)
-
   * changing aperture radius; 
-
   * allowing aperture radius to scale with seeing; 
-
-  X weight all the comp stars equally instead of just summing the flux.
-  > improves r band by a few %. worsens i band by >~10%.
-
 
 * do g,z bands too
   * fine-tune SAP parameters
@@ -27,6 +27,17 @@ precision we currently have would be difficult. Also, I foudn
 https://github.com/astropy/photutils/pull/453, which indicates the median local
 background subtraction might actually work.
 
+Main lessons from AstroImageJ:
+
+Yes, the quality of the images varies a large amount over the course of
+the night.
+
+Fri 30 Jun 2017 03:11:28 PM EDT
+
+An apparently reproducing those nice <% LCs is difficult >_>
+
+
+
 
 ====================
 Thu 29 Jun 2017 01:59:24 PM EDT
@@ -38,6 +49,8 @@ comparison stars by imposing the upper bound on length that was too small
 X plot comparison star residuals
 X plot comparison star fluxes
   (all on same mega-plot, cf Fig 18 of Photometric_Reduction_Guide.pdf)
+X weight all the comp stars equally instead of just summing the flux.
+  > improves r band by a few %. worsens i band by >~10%.
 
 
 

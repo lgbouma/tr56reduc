@@ -47,7 +47,7 @@ r_195 = {
 
 fluxs = {}
 
-for band in ['r','i']:
+for band in ['g','z']:
 
     got_one = False
 
@@ -60,7 +60,7 @@ for band in ['r','i']:
     writedir = '../results/'+dname+'/'
     phottabledir = '../results/'+dname+'/phot_table/'
 
-    for d in [phottabledir, writedir]:
+    for d in [writedir, phottabledir]:
         if not os.path.exists(d):
             os.mkdir(d)
             if d == writedir:

@@ -18,4 +18,4 @@ radius = {'g':18, 'r':18, 'i':18, 'z':17}
 annuli_r = {'g':[21,24], 'r':[21,24], 'i':[21,24], 'z':[20,23]}
 
 # MANUAL CHOOSING: best for r: 8, i: (5 or 8, not sure)
-N_comp_stars = {'r':8, 'i':5}
+N_comp_stars = {'r':8, 'i':5, 'g':6, 'z':6}
