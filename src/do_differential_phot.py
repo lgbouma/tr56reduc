@@ -311,6 +311,9 @@ for band in ['r','i']:
         ax.set_xlabel('BJD TDB - {:d} [days]'.format(t_0_tr56))
         ax.set_ylabel('relative flux ({:s})'.format(method))
 
+        ax.minorticks_on()
+        ax.grid(True, which='both')
+
         f.tight_layout()
         f.savefig(resultsdir+'tr56_flux_vs_time_{:s}band_{:s}.png'.
                 format(band,method), dpi=300, bbox_inches='tight')
@@ -352,7 +355,7 @@ for band in ['r','i']:
         axs[2].set_ylabel('(tr56/comparison) / median(tr56)',
                 fontsize='x-small')
 
-        for ax in axs:
+        for ax in [axs[0],axs[1]]:
             ax.set_xlim([min(time_tr56 - t_0_tr56),max(time_tr56 - t_0_tr56)])
             ax.set_xticklabels([])
 
