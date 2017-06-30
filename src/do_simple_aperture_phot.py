@@ -1,6 +1,5 @@
 '''
 do aperture photometry on OGLE TR 56b data.
-expect ingress at UTC 01:40
 '''
 
 from __future__ import division, print_function
@@ -17,8 +16,6 @@ from photutils import make_source_mask
 import os, pickle
 
 datadir = '../data/'
-writedir = '../results/'
-phottabledir = '../results/phot_table/'
 
 # Toss out the first 4 frames -- they were for calibration.
 fnames = [f for f in os.listdir(datadir) if f.startswith('tr56_')
@@ -28,7 +25,7 @@ fnames = np.sort(fnames)
 bands = ['g', 'r', 'i', 'z']
 ch_num = {'g':1, 'r':4, 'i':5, 'z':8}
 
-# Get dicts of thresh, fwhm, radius, annuli_r
+# Get dicts of thresh, fwhm, radius, annuli_r, N comparison stars.
 import define_arbitrary_parameters as arb
 
 # Initial positions for TR56, to be sure starfinder algorithm catches it.
@@ -53,6 +50,21 @@ fluxs = {}
 for band in ['r','i']:
 
     got_one = False
+
+    ##################################
+    # FIGURE OUT DIRECTORY STRUCTURE #
+    ##################################
+    dname = '{:s}_{:d}comp_radius{:d}_rin{:d}_rout{:d}_thresh{:d}'.format(
+            band, arb.N_comp_stars[band], arb.radius[band],
+            arb.annuli_r[band][0], arb.annuli_r[band][1], arb.thresh[band])
+    writedir = '../results/'+dname+'/'
+    phottabledir = '../results/'+dname+'/phot_table/'
+
+    for d in [phottabledir, writedir]:
+        if not os.path.exists(d):
+            os.mkdir(d)
+            if d == writedir:
+                os.mkdir(writedir+'selected_comparison_stars')
 
     existing_phot_files = np.sort([f for f in os.listdir(phottabledir) if
                                    f.endswith('_'+band+'.pkl')])
@@ -134,19 +146,64 @@ for band in ['r','i']:
         # JNW "the best choice of aperture radius is ~twice the FWHM of the
         # stellar image". But this field is crowded. Based on movies w/
         # overplotted apertures, smaller should be better.
-        apertures = CircularAperture(positions, r=arb.radius[band])
+        circ_apertures = CircularAperture(positions, r=arb.radius[band])
         annulus_apertures = CircularAnnulus(
                 positions, r_in=arb.annuli_r[band][0], r_out=arb.annuli_r[band][1])
-        apers = [apertures, annulus_apertures]
+        apers = [circ_apertures, annulus_apertures]
         phot_table = aperture_photometry(image, apers)
 
-        # Local background subtraction. Follow
-        # http://photutils.readthedocs.io/en/stable/photutils...
-        #       /aperture.html#local-background-subtraction
-        bkg_mean = phot_table['aperture_sum_1'] / annulus_apertures.area()
-        bkg_sum = bkg_mean * apertures.area()
+        #################################
+        # Local background subtraction. #
+        #################################
+
+        ## Method 1: Follow
+        ## http://photutils.readthedocs.io/en/stable/photutils (...)
+        ##       /aperture.html#local-background-subtraction
+        #bkg_mean = phot_table['aperture_sum_1'] / annulus_apertures.area()
+        #bkg_sum = bkg_mean * circ_apertures.area()
+        #final_sum = phot_table['aperture_sum_0'] - bkg_sum
+        #phot_table['residual_aperture_sum'] = final_sum
+
+        # Method 2: Follow
+        # https://github.com/astropy/photutils/pull/453, sigclipping away stars
+        # in the annulus.
+        ann_masks = annulus_apertures.to_mask(method='center')
+        ann_masked_data = [am.apply(image) for am in ann_masks]
+
+        # Sigma clip stars in annular aperture.
+        pre_sc_median = [np.nanmedian(amd[amd != 0])
+                            for amd in ann_masked_data]
+
+        pre_sc_std = [
+                (np.nanmedian(np.abs(amd[amd != 0] - pre_sc_median[ix])))*1.483
+                for ix, amd in enumerate(ann_masked_data)
+                ]
+
+        sigma_cut = 3
+        siginds = [
+                ( (np.abs(amd[amd != 0] - pre_sc_median[ix])) <
+                (sigma_cut * pre_sc_std[ix]) )
+                for ix, amd in enumerate(ann_masked_data)
+                ]
+
+        ann_masked_sigclipped_data = [
+                amd[amd != 0][siginds[ix]]
+                for ix,amd in enumerate(ann_masked_data)
+                ]
+
+        bkg_median = np.array(
+                [np.nanmedian(amds[amds != 0])
+                 for amds in ann_masked_sigclipped_data]
+                )
+
+        bkg_sum = bkg_median*circ_apertures.area()
+
         final_sum = phot_table['aperture_sum_0'] - bkg_sum
         phot_table['residual_aperture_sum'] = final_sum
+
+        #####################################
+        # End local background subtraction. #
+        #####################################
 
         if not got_one:
             # Initialize guesses handread from images until you find a match.

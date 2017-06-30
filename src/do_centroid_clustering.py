@@ -12,7 +12,6 @@ import define_arbitrary_parameters as arb
 eps_d = {'r':15, 'i':15}
 
 datadir = '../data/'
-phottabledir = '../results/phot_table/'
 
 for band in ['r','i']:
 
@@ -20,6 +19,7 @@ for band in ['r','i']:
             band, arb.N_comp_stars[band], arb.radius[band],
             arb.annuli_r[band][0], arb.annuli_r[band][1], arb.thresh[band])
     resultsdir = '../results/'+dname+'/'
+    phottabledir = '../results/'+dname+'/phot_table/'
     if not os.path.exists(resultsdir):
         os.mkdir(resultsdir)
         os.mkdir(resultsdir+'selected_comparison_stars')
