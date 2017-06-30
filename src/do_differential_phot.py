@@ -22,7 +22,6 @@ from scipy.interpolate import interp1d
 import define_arbitrary_parameters as arb
 
 datadir = '../data/'
-phottabledir = '../results/phot_table/'
 pkldir = '../results/'
 
 for band in ['r','i']:
@@ -30,6 +29,7 @@ for band in ['r','i']:
     dname = '{:s}_{:d}comp_radius{:d}_rin{:d}_rout{:d}_thresh{:d}'.format(
             band, arb.N_comp_stars[band], arb.radius[band],
             arb.annuli_r[band][0], arb.annuli_r[band][1], arb.thresh[band])
+    phottabledir = '../results/'+dname+'/phot_table/'
     resultsdir = '../results/'+dname+'/'
 
     if not os.path.exists(resultsdir):
@@ -149,15 +149,15 @@ for band in ['r','i']:
             'r':[],
             'i':[32]}
 
-    # One method: choose comparison stars based on chi squared. This winds up
-    # being oddly biased for reasons I'm no
+    ##Method 1: choose comparison stars based on chi squared. This winds up
+    ##being oddly biased for reasons I don't understand.
     #label_chisq = [(label, comp_dict[label]['chisq']) for label in comp_dict]
     #selected_comp_labels = [label for (label, csq) in sorted(label_chisq,
     #                        key=lambda lc: lc[1]) if label != 0 and label not
     #                        in veto_list[band]][:N_comp_star]
 
-    # Choose comparison stars based on if they're close & similar flux. (MANUAL
-    # SELECTION).
+    # Method 2: Choose comparison stars based on if they're close & similar
+    # flux. (Manual selection, following centroid_clustering output).
     if band=='r':
         selected_comp_labels = [57,72,23,39,30,28,40,4,17]
     elif band=='i':
@@ -173,7 +173,21 @@ for band in ['r','i']:
     assert len(selected_comp_labels) == arb.N_comp_stars[band]
     print('N selected comp stars: {:d}'.format(len(selected_comp_labels)))
 
-    ix = 0
+    ############################################
+    # Compute the comparison star flux signal. #
+    ############################################
+    # f_target,diffentialphot = f_target * weight,
+    # where weight is defined as
+    # Method 1: (sum over comparison stars of comp star fluxes)^{-1}
+    # Method 2: (sum over comparison stars of [comp star flux / median of comp
+    #                   star flux])^{-1}
+    # Method 3: (sum over comparison stars of [comp star flux /
+    #                   sqrt(median of comp star flux)])^{-1}
+    # The weight is arbitrary, so whatever minimizes RMS is chosen as "tha
+    # best".
+
+    ix, flux_comp_list = 0, []
+
     for cl in selected_comp_labels:
 
         time_comp = comp_dict[cl]['t']
@@ -194,8 +208,6 @@ for band in ['r','i']:
         sflux_comp_reinterp = fn(time_tr56)
 
         if ix == 0:
-            flux_comp_stack = np.zeros_like(flux_tr56)
-
             print('WRN: removing old comparison star plots')
             compstarfs = [f for f in
                     os.listdir(resultsdir+'selected_comparison_stars/') if
@@ -232,96 +244,110 @@ for band in ['r','i']:
                 '{:s}_{:s}band.png'.format(str(cl), band),
                 dpi=200, bbox_inches='tight')
 
-        # Add star to comparison star flux stack.
-        flux_comp_stack += sflux_comp_reinterp
+        # Add star to comparison star flux list (stack created after).
+        flux_comp_list.append(sflux_comp_reinterp)
         ix += 1
 
-    flux_comp_stack /= N_comp_star
+    # Stack comparison fluxes using different methods.
+    flux_comp_arr = np.array(flux_comp_list)
+    flux_comp_stack = {
+            'method1': np.sum(flux_comp_arr, axis=0),
+            'method2': np.sum(
+                        flux_comp_arr/np.median(flux_comp_arr, axis=0),
+                        axis=0),
+            'method3': np.sum(
+                        flux_comp_arr/np.sqrt(np.median(flux_comp_arr,axis=0)),
+                        axis=0)
+            }
 
-    ###########################
-    # Plot TR 56 flux vs time #
-    ###########################
-    plt.close('all')
-    f,ax = plt.subplots(figsize=(8,4))
 
-    norm_flux_tr56 = flux_tr56/flux_comp_stack
-    norm_flux_tr56 /= np.median(norm_flux_tr56)
+    for method in np.sort(list(flux_comp_stack.keys())):
 
-    # Sigma clip outliers from TR 56 fluxes.
-    median_flux = np.median(norm_flux_tr56)
-    stddev_flux = (np.median(np.abs(norm_flux_tr56- median_flux))) * 1.483
-    sigma_cut = 3
-    sigind = (np.abs(norm_flux_tr56- median_flux)) < \
-             (sigma_cut * stddev_flux)
-    snorm_flux_tr56 = norm_flux_tr56[sigind]
-    stime_tr56 = time_tr56[sigind]
+        ###########################
+        # Plot TR 56 flux vs time #
+        ###########################
+        plt.close('all')
+        f,ax = plt.subplots(figsize=(8,4))
 
-    ax.plot(stime_tr56 - t_0_tr56, snorm_flux_tr56 ,
-            c='black', linestyle='-', marker='o', markerfacecolor='black',
-            markeredgecolor='black', ms=1, lw=0)
+        norm_flux_tr56 = flux_tr56/flux_comp_stack[method]
+        norm_flux_tr56 /= np.median(norm_flux_tr56)
 
-    bd = time_bin_magseries(stime_tr56, snorm_flux_tr56,
-            binsize=240., minbinelems=5)
-    bin_flux_tr56, bin_time_tr56 = bd['binnedmags'], bd['binnedtimes']
-    ax.plot(bin_time_tr56 - t_0_tr56, bin_flux_tr56 ,
-            c='black', linestyle='-', marker='o', markerfacecolor='red',
-            markeredgecolor='none', ms=4, lw=2, alpha=0.5)
+        # Sigma clip outliers from TR 56 fluxes.
+        median_flux = np.median(norm_flux_tr56)
+        stddev_flux = (np.median(np.abs(norm_flux_tr56- median_flux))) * 1.483
+        sigma_cut = 3
+        sigind = (np.abs(norm_flux_tr56- median_flux)) < \
+                 (sigma_cut * stddev_flux)
+        snorm_flux_tr56 = norm_flux_tr56[sigind]
+        stime_tr56 = time_tr56[sigind]
 
-    rms = np.sqrt( np.sum( (snorm_flux_tr56 - np.median(snorm_flux_tr56) )**2 ) / \
-                len(snorm_flux_tr56) )
-    ax.text(0.02, 0.02, 'rms: {:.3g}'.format(rms),
-            verticalalignment='bottom', horizontalalignment='left',
-            fontsize='small', transform=ax.transAxes,
-            bbox=dict(facecolor='white', edgecolor='white', pad=1))
+        ax.plot(stime_tr56 - t_0_tr56, snorm_flux_tr56 ,
+                c='black', linestyle='-', marker='o', markerfacecolor='black',
+                markeredgecolor='black', ms=1, lw=0)
 
-    ax.set_xlim([min(time_tr56 - t_0_tr56),max(time_tr56 - t_0_tr56)])
-    ax.set_xlabel('BJD TDB - {:d} [days]'.format(t_0_tr56))
-    ax.set_ylabel('relative flux')
+        bd = time_bin_magseries(stime_tr56, snorm_flux_tr56,
+                binsize=240., minbinelems=5)
+        bin_flux_tr56, bin_time_tr56 = bd['binnedmags'], bd['binnedtimes']
+        ax.plot(bin_time_tr56 - t_0_tr56, bin_flux_tr56 ,
+                c='black', linestyle='-', marker='o', markerfacecolor='red',
+                markeredgecolor='none', ms=4, lw=2, alpha=0.5)
 
-    f.tight_layout()
-    f.savefig(resultsdir+'tr56_flux_vs_time_{:s}band.png'.format(band),
-            dpi=300, bbox_inches='tight')
+        rms = np.sqrt( np.sum( (snorm_flux_tr56 - np.median(snorm_flux_tr56) )**2 ) / \
+                    len(snorm_flux_tr56) )
+        ax.text(0.02, 0.02, 'rms: {:.3g}'.format(rms),
+                verticalalignment='bottom', horizontalalignment='left',
+                fontsize='small', transform=ax.transAxes,
+                bbox=dict(facecolor='white', edgecolor='white', pad=1))
 
-    #############################################
-    # Plot:                                     #
-    # sum of flux in adu of all the comp stars, #
-    # flux of TR-56 in adu,                     #
-    # TR-56 divided by comparison signal.       #
-    #############################################
-    plt.close('all')
-    f,axs = plt.subplots(nrows=3, ncols=1, figsize=(8,8))
-
-    # flux of TR-56 in adu
-    axs[0].plot(stime_tr56 - t_0_tr56, flux_tr56[sigind],
-            c='black', linestyle='-', marker='o', markerfacecolor='black',
-            markeredgecolor='black', ms=1, lw=0)
-    axs[0].set_ylabel('tr56 signal [ADU]', fontsize='x-small')
-
-    # sum of flux in adu of all the comp stars
-    axs[1].plot(stime_tr56 - t_0_tr56, flux_comp_stack[sigind],
-            c='black', linestyle='-', marker='o', markerfacecolor='black',
-            markeredgecolor='black', ms=1, lw=0)
-    axs[1].set_ylabel('comparison signal [ADU]', fontsize='x-small')
-
-    # TR-56 divided by comparison signal.
-    axs[2].plot(stime_tr56 - t_0_tr56, snorm_flux_tr56 ,
-            c='black', linestyle='-', marker='o', markerfacecolor='black',
-            markeredgecolor='black', ms=1, lw=0)
-
-    bd = time_bin_magseries(stime_tr56, snorm_flux_tr56,
-            binsize=240., minbinelems=5)
-    bin_flux_tr56, bin_time_tr56 = bd['binnedmags'], bd['binnedtimes']
-    axs[2].plot(bin_time_tr56 - t_0_tr56, bin_flux_tr56 ,
-            c='black', linestyle='-', marker='o', markerfacecolor='red',
-            markeredgecolor='none', ms=4, lw=2, alpha=0.5)
-    axs[2].set_xlabel('BJD TDB - {:d} [days]'.format(t_0_tr56))
-    axs[2].set_ylabel('(tr56/comparison) / median(tr56)',
-            fontsize='x-small')
-
-    for ax in axs:
         ax.set_xlim([min(time_tr56 - t_0_tr56),max(time_tr56 - t_0_tr56)])
-        ax.set_xticklabels([])
+        ax.set_xlabel('BJD TDB - {:d} [days]'.format(t_0_tr56))
+        ax.set_ylabel('relative flux ({:s})'.format(method))
 
-    f.tight_layout()
-    f.savefig(resultsdir+'tr56_compsignal_flux_vs_time_{:s}band.png'.format(band),
-            dpi=300, bbox_inches='tight')
+        f.tight_layout()
+        f.savefig(resultsdir+'tr56_flux_vs_time_{:s}band_{:s}.png'.
+                format(band,method), dpi=300, bbox_inches='tight')
+
+        #############################################
+        # Plot:                                     #
+        # sum of flux in adu of all the comp stars, #
+        # flux of TR-56 in adu,                     #
+        # TR-56 divided by comparison signal.       #
+        #############################################
+        plt.close('all')
+        f,axs = plt.subplots(nrows=3, ncols=1, figsize=(8,8))
+
+        # flux of TR-56 in adu
+        axs[0].plot(stime_tr56 - t_0_tr56, flux_tr56[sigind],
+                c='black', linestyle='-', marker='o', markerfacecolor='black',
+                markeredgecolor='black', ms=1, lw=0)
+        axs[0].set_ylabel('tr56 signal [ADU]', fontsize='x-small')
+
+        # sum of flux in adu of all the comp stars
+        axs[1].plot(stime_tr56 - t_0_tr56, flux_comp_stack[method][sigind],
+                c='black', linestyle='-', marker='o', markerfacecolor='black',
+                markeredgecolor='black', ms=1, lw=0)
+        axs[1].set_ylabel('comparison signal ({:s}) [ADU]'.format(method),
+                fontsize='x-small')
+
+        # TR-56 divided by comparison signal.
+        axs[2].plot(stime_tr56 - t_0_tr56, snorm_flux_tr56 ,
+                c='black', linestyle='-', marker='o', markerfacecolor='black',
+                markeredgecolor='black', ms=1, lw=0)
+
+        bd = time_bin_magseries(stime_tr56, snorm_flux_tr56,
+                binsize=240., minbinelems=5)
+        bin_flux_tr56, bin_time_tr56 = bd['binnedmags'], bd['binnedtimes']
+        axs[2].plot(bin_time_tr56 - t_0_tr56, bin_flux_tr56 ,
+                c='black', linestyle='-', marker='o', markerfacecolor='red',
+                markeredgecolor='none', ms=4, lw=2, alpha=0.5)
+        axs[2].set_xlabel('BJD TDB - {:d} [days]'.format(t_0_tr56))
+        axs[2].set_ylabel('(tr56/comparison) / median(tr56)',
+                fontsize='x-small')
+
+        for ax in axs:
+            ax.set_xlim([min(time_tr56 - t_0_tr56),max(time_tr56 - t_0_tr56)])
+            ax.set_xticklabels([])
+
+        f.tight_layout()
+        f.savefig(resultsdir+'tr56_compsignal_flux_vs_time_{:s}band_{:s}.png'.
+                format(band, method), dpi=300, bbox_inches='tight')

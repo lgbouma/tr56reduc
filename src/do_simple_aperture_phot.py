@@ -159,47 +159,47 @@ for band in ['r','i']:
         ## Method 1: Follow
         ## http://photutils.readthedocs.io/en/stable/photutils (...)
         ##       /aperture.html#local-background-subtraction
-        #bkg_mean = phot_table['aperture_sum_1'] / annulus_apertures.area()
-        #bkg_sum = bkg_mean * circ_apertures.area()
-        #final_sum = phot_table['aperture_sum_0'] - bkg_sum
-        #phot_table['residual_aperture_sum'] = final_sum
-
-        # Method 2: Follow
-        # https://github.com/astropy/photutils/pull/453, sigclipping away stars
-        # in the annulus.
-        ann_masks = annulus_apertures.to_mask(method='center')
-        ann_masked_data = [am.apply(image) for am in ann_masks]
-
-        # Sigma clip stars in annular aperture.
-        pre_sc_median = [np.nanmedian(amd[amd != 0])
-                            for amd in ann_masked_data]
-
-        pre_sc_std = [
-                (np.nanmedian(np.abs(amd[amd != 0] - pre_sc_median[ix])))*1.483
-                for ix, amd in enumerate(ann_masked_data)
-                ]
-
-        sigma_cut = 3
-        siginds = [
-                ( (np.abs(amd[amd != 0] - pre_sc_median[ix])) <
-                (sigma_cut * pre_sc_std[ix]) )
-                for ix, amd in enumerate(ann_masked_data)
-                ]
-
-        ann_masked_sigclipped_data = [
-                amd[amd != 0][siginds[ix]]
-                for ix,amd in enumerate(ann_masked_data)
-                ]
-
-        bkg_median = np.array(
-                [np.nanmedian(amds[amds != 0])
-                 for amds in ann_masked_sigclipped_data]
-                )
-
-        bkg_sum = bkg_median*circ_apertures.area()
-
+        bkg_mean = phot_table['aperture_sum_1'] / annulus_apertures.area()
+        bkg_sum = bkg_mean * circ_apertures.area()
         final_sum = phot_table['aperture_sum_0'] - bkg_sum
         phot_table['residual_aperture_sum'] = final_sum
+
+        ## Method 2: Follow
+        ## https://github.com/astropy/photutils/pull/453, sigclipping away stars
+        ## in the annulus.
+        #ann_masks = annulus_apertures.to_mask(method='center')
+        #ann_masked_data = [am.apply(image) for am in ann_masks]
+
+        ## Sigma clip stars in annular aperture.
+        #pre_sc_median = [np.nanmedian(amd[amd != 0])
+        #                    for amd in ann_masked_data]
+
+        #pre_sc_std = [
+        #        (np.nanmedian(np.abs(amd[amd != 0] - pre_sc_median[ix])))*1.483
+        #        for ix, amd in enumerate(ann_masked_data)
+        #        ]
+
+        #sigma_cut = 3
+        #siginds = [
+        #        ( (np.abs(amd[amd != 0] - pre_sc_median[ix])) <
+        #        (sigma_cut * pre_sc_std[ix]) )
+        #        for ix, amd in enumerate(ann_masked_data)
+        #        ]
+
+        #ann_masked_sigclipped_data = [
+        #        amd[amd != 0][siginds[ix]]
+        #        for ix,amd in enumerate(ann_masked_data)
+        #        ]
+
+        #bkg_median = np.array(
+        #        [np.nanmedian(amds[amds != 0])
+        #         for amds in ann_masked_sigclipped_data]
+        #        )
+
+        #bkg_sum = bkg_median*circ_apertures.area()
+
+        #final_sum = phot_table['aperture_sum_0'] - bkg_sum
+        #phot_table['residual_aperture_sum'] = final_sum
 
         #####################################
         # End local background subtraction. #
