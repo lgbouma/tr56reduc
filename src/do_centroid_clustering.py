@@ -9,7 +9,7 @@ from sklearn.preprocessing import StandardScaler
 
 import define_arbitrary_parameters as arb
 
-eps_d = {'r':15, 'i':15}
+eps_d = {'g':15, 'r':15, 'i':15, 'z':15}
 
 datadir = '../data/'
 

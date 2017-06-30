@@ -22,7 +22,6 @@ from scipy.interpolate import interp1d
 import define_arbitrary_parameters as arb
 
 datadir = '../data/'
-pkldir = '../results/'
 
 for band in ['r','i']:
 
@@ -38,7 +37,7 @@ for band in ['r','i']:
 
     print('beginning {:s} band'.format(band))
 
-    time_tr56 = pickle.load( open(pkldir+'times_{:s}.pkl'.format(band), 'rb'))
+    time_tr56 = pickle.load( open(resultsdir+'times_{:s}.pkl'.format(band), 'rb'))
 
     phot_files = np.sort([f for f in os.listdir(phottabledir) if
                           f.endswith('_'+band+'.pkl')])
@@ -158,10 +157,19 @@ for band in ['r','i']:
 
     # Method 2: Choose comparison stars based on if they're close & similar
     # flux. (Manual selection, following centroid_clustering output).
-    if band=='r':
+    # NOTE: these comparison labels are actually only good for
+    if dname=='r_8comp_radius18_rin21_rout24_thresh1700':
         selected_comp_labels = [57,72,23,39,30,28,40,4,17]
-    elif band=='i':
-        selected_comp_labels = [4,10,59,42,115,98,63,110]
+    elif dname=='r_8comp_radius15_rin20_rout24_thresh1700':
+        selected_comp_labels = [57,72,23,39,30,28,40,4,17]
+    elif dname=='i_5comp_radius18_rin21_rout24_thresh2200':
+        selected_comp_labels = [10,59,42,115,98,63,110,4]
+    elif dname=='i_5comp_radius15_rin20_rout24_thresh2200':
+        selected_comp_labels = [10,59,42,115,98,63,110,4]
+    elif dname=='g_6comp_radius18_rin21_rout24_thresh600':
+        selected_comp_labels = [25,20,32,20,42,29,32,10,11]
+    elif dname=='z_6comp_radius17_rin20_rout23_thresh1100':
+        selected_comp_labels = [5,40,17,15,27,22,90,51,96]
 
     good_comp_stars = np.intersect1d(selected_comp_labels,
             list(comp_dict.keys()))

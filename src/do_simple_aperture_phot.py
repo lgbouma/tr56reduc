@@ -47,7 +47,7 @@ r_195 = {
 
 fluxs = {}
 
-for band in ['g','z']:
+for band in ['r','i']:
 
     got_one = False
 

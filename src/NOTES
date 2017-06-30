@@ -1,23 +1,27 @@
 ====================
+Things to think about:
 
 * Time calibration
 * Flat fielding
 * Local sky background issues
 * 2D background subtraction(?)
-* could also weight by sqrt(flux), instead of by flux (which is "summing by the
-  flux"). or by nothing!
+* add data from before repointing(?)
 
 * Other things to try:
-  * detrend vs airmass. (follow Adams, Fig 18 of Photometric_Reduction_Guide)
-  * changing aperture radius; 
+  * detrend vs airmass.
   * allowing aperture radius to scale with seeing; 
-
-* do g,z bands too
-  * fine-tune SAP parameters
-
-* add data from before repointing.
+  * fine-tune SAP parameters (for g and z bands)
 
 * fit transit model w/ emcee
+
+====================
+Fri 30 Jun 2017 04:33:47 PM EDT
+
+X could also weight by sqrt(flux), instead of by flux (which is "summing by the
+  flux"). or by nothing!
+X do g,z bands too
+X changing aperture radius
+  > did, this improves LC RMS by like ~10-20%
 
 ====================
 Fri 30 Jun 2017 11:47:01 AM EDT
@@ -31,11 +35,6 @@ Main lessons from AstroImageJ:
 
 Yes, the quality of the images varies a large amount over the course of
 the night.
-
-Fri 30 Jun 2017 03:11:28 PM EDT
-
-An apparently reproducing those nice <% LCs is difficult >_>
-
 
 
 
