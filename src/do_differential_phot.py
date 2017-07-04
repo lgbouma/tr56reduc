@@ -162,9 +162,13 @@ for band in ['r','i']:
         selected_comp_labels = [57,72,23,39,30,28,40,4,17]
     elif dname=='r_8comp_radius15_rin20_rout24_thresh1700':
         selected_comp_labels = [57,72,23,39,30,28,40,4,17]
+    elif dname=='r_8comp_radius13_rin19_rout22_thresh1700':
+        selected_comp_labels = [57,72,23,39,30,28,40,4,17]
     elif dname=='i_5comp_radius18_rin21_rout24_thresh2200':
         selected_comp_labels = [10,59,42,115,98,63,110,4]
     elif dname=='i_5comp_radius15_rin20_rout24_thresh2200':
+        selected_comp_labels = [10,59,42,115,98,63,110,4]
+    elif dname=='i_5comp_radius13_rin19_rout22_thresh2200':
         selected_comp_labels = [10,59,42,115,98,63,110,4]
     elif dname=='g_6comp_radius18_rin21_rout24_thresh600':
         selected_comp_labels = [25,20,32,20,42,29,32,10,11]
